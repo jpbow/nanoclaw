@@ -28,6 +28,7 @@ Single Node.js process that connects to WhatsApp, routes messages to Claude Agen
 | `/setup` | First-time installation, authentication, service configuration |
 | `/customize` | Adding channels, integrations, changing behavior |
 | `/debug` | Container issues, logs, troubleshooting |
+| `/add-github` | Add GitHub MCP tools (issues, PRs, repos) via GitHub Copilot MCP server |
 
 ## Development
 
