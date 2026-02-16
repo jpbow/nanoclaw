@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { readEnvFile } from './env.js';
 import { logger } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,9 +36,9 @@ async function transcribeWithElevenLabs(
   audioBuffer: Buffer,
   config: TranscriptionConfig,
 ): Promise<string | null> {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
+  const apiKey = readEnvFile(['ELEVENLABS_API_KEY']).ELEVENLABS_API_KEY;
   if (!apiKey) {
-    logger.warn('ELEVENLABS_API_KEY not set in environment');
+    logger.warn('ELEVENLABS_API_KEY not set in .env');
     return null;
   }
 

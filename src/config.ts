@@ -59,6 +59,23 @@ export const TRIGGER_PATTERN = new RegExp(
   'i',
 );
 
+// Voice messages use "hey <name>" anywhere in the transcribed text.
+// Allow optional punctuation (comma, colon, etc.) between "hey" and the name,
+// since transcription services often insert punctuation.
+export const VOICE_TRIGGER_PATTERN = new RegExp(
+  `\\bhey[,;:!]?\\s+${escapeRegex(ASSISTANT_NAME)}\\b`,
+  'i',
+);
+
+/** Check if a message (text or voice) contains a trigger */
+export function hasTrigger(content: string): boolean {
+  if (TRIGGER_PATTERN.test(content.trim())) return true;
+  // Voice transcriptions are stored as [Voice: ...]
+  const voiceMatch = content.match(/^\[Voice:\s*([\s\S]*)\]$/);
+  if (voiceMatch && VOICE_TRIGGER_PATTERN.test(voiceMatch[1])) return true;
+  return false;
+}
+
 // Timezone for scheduled tasks (cron expressions, etc.)
 // Uses system timezone by default
 export const TIMEZONE =

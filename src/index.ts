@@ -5,10 +5,10 @@ import path from 'path';
 import {
   ASSISTANT_NAME,
   DATA_DIR,
+  hasTrigger,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
   POLL_INTERVAL,
-  TRIGGER_PATTERN,
 } from './config.js';
 import { WhatsAppChannel } from './channels/whatsapp.js';
 import {
@@ -130,10 +130,8 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   // For non-main groups, check if trigger is required and present
   if (!isMainGroup && group.requiresTrigger !== false) {
-    const hasTrigger = missedMessages.some((m) =>
-      TRIGGER_PATTERN.test(m.content.trim()),
-    );
-    if (!hasTrigger) return true;
+    const triggered = missedMessages.some((m) => hasTrigger(m.content));
+    if (!triggered) return true;
   }
 
   const prompt = formatMessages(missedMessages);
@@ -327,10 +325,8 @@ async function startMessageLoop(): Promise<void> {
           // Non-trigger messages accumulate in DB and get pulled as
           // context when a trigger eventually arrives.
           if (needsTrigger) {
-            const hasTrigger = groupMessages.some((m) =>
-              TRIGGER_PATTERN.test(m.content.trim()),
-            );
-            if (!hasTrigger) continue;
+            const triggered = groupMessages.some((m) => hasTrigger(m.content));
+            if (!triggered) continue;
           }
 
           // Pull all messages since lastAgentTimestamp so non-trigger
