@@ -513,6 +513,11 @@ async function main(): Promise<void> {
       if (!channel) throw new Error(`No channel for JID: ${jid}`);
       return channel.sendMessage(jid, text);
     },
+    sendPhoto: (jid, photo, caption) => {
+      const channel = findChannel(channels, jid);
+      if (!channel?.sendPhoto) throw new Error(`No channel with photo support for JID: ${jid}`);
+      return channel.sendPhoto(jid, photo, caption);
+    },
     registeredGroups: () => registeredGroups,
     registerGroup,
     syncGroupMetadata: (force) => whatsapp?.syncGroupMetadata(force) ?? Promise.resolve(),

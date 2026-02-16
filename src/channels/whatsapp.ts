@@ -234,6 +234,22 @@ export class WhatsAppChannel implements Channel {
     }
   }
 
+  async sendPhoto(jid: string, photo: Buffer, caption?: string): Promise<void> {
+    if (!this.connected) {
+      logger.warn({ jid }, 'WA disconnected, photo not sent');
+      return;
+    }
+    try {
+      await this.sock.sendMessage(jid, {
+        image: photo,
+        caption: caption || undefined,
+      });
+      logger.info({ jid }, 'WhatsApp photo sent');
+    } catch (err) {
+      logger.error({ jid, err }, 'Failed to send WhatsApp photo');
+    }
+  }
+
   isConnected(): boolean {
     return this.connected;
   }

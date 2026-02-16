@@ -16,6 +16,7 @@ import { RegisteredGroup } from './types.js';
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
+  sendPhoto: (jid: string, photo: Buffer, caption?: string) => Promise<void>;
   registeredGroups: () => Record<string, RegisteredGroup>;
   registerGroup: (jid: string, group: RegisteredGroup) => void;
   syncGroupMetadata: (force: boolean) => Promise<void>;
@@ -71,13 +72,14 @@ export function startIpcWatcher(deps: IpcDeps): void {
             const filePath = path.join(messagesDir, file);
             try {
               const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+              // Authorization check shared by message and image types
+              const isAuthorized = (targetJid: string) => {
+                const targetGroup = registeredGroups[targetJid];
+                return isMain || (targetGroup && targetGroup.folder === sourceGroup);
+              };
+
               if (data.type === 'message' && data.chatJid && data.text) {
-                // Authorization: verify this group can send to this chatJid
-                const targetGroup = registeredGroups[data.chatJid];
-                if (
-                  isMain ||
-                  (targetGroup && targetGroup.folder === sourceGroup)
-                ) {
+                if (isAuthorized(data.chatJid)) {
                   await deps.sendMessage(data.chatJid, data.text);
                   logger.info(
                     { chatJid: data.chatJid, sourceGroup },
@@ -87,6 +89,31 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   logger.warn(
                     { chatJid: data.chatJid, sourceGroup },
                     'Unauthorized IPC message attempt blocked',
+                  );
+                }
+              } else if (data.type === 'image' && data.chatJid && data.imagePath) {
+                if (isAuthorized(data.chatJid)) {
+                  // Translate container path to host path
+                  // Container: /workspace/ipc/media/foo.png → Host: data/ipc/{sourceGroup}/media/foo.png
+                  const relativePath = data.imagePath.replace(/^\/workspace\/ipc\//, '');
+                  const hostPath = path.join(ipcBaseDir, sourceGroup, relativePath);
+                  if (fs.existsSync(hostPath)) {
+                    const imageBuffer = fs.readFileSync(hostPath);
+                    await deps.sendPhoto(data.chatJid, imageBuffer, data.caption);
+                    logger.info(
+                      { chatJid: data.chatJid, sourceGroup, path: hostPath },
+                      'IPC image sent',
+                    );
+                  } else {
+                    logger.error(
+                      { chatJid: data.chatJid, hostPath },
+                      'IPC image file not found on host',
+                    );
+                  }
+                } else {
+                  logger.warn(
+                    { chatJid: data.chatJid, sourceGroup },
+                    'Unauthorized IPC image attempt blocked',
                   );
                 }
               }

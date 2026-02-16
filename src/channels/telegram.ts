@@ -198,6 +198,24 @@ export class TelegramChannel implements Channel {
     }
   }
 
+  async sendPhoto(jid: string, photo: Buffer, caption?: string): Promise<void> {
+    if (!this.bot) {
+      logger.warn('Telegram bot not initialized');
+      return;
+    }
+
+    try {
+      const numericId = jid.replace(/^tg:/, '');
+      const { InputFile } = await import('grammy');
+      await this.bot.api.sendPhoto(numericId, new InputFile(photo), {
+        caption: caption || undefined,
+      });
+      logger.info({ jid }, 'Telegram photo sent');
+    } catch (err) {
+      logger.error({ jid, err }, 'Failed to send Telegram photo');
+    }
+  }
+
   async setTyping(jid: string, isTyping: boolean): Promise<void> {
     if (!this.bot || !isTyping) return;
     try {

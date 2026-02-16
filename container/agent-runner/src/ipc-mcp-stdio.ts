@@ -63,6 +63,36 @@ server.tool(
 );
 
 server.tool(
+  'send_image',
+  'Send an image/photo to the user or group. Use this after taking a screenshot or generating an image file. The file must exist on the local filesystem.',
+  {
+    path: z.string().describe('Absolute path to the image file (e.g., /workspace/ipc/media/screenshot.png)'),
+    caption: z.string().optional().describe('Optional caption to send with the image'),
+  },
+  async (args) => {
+    if (!fs.existsSync(args.path)) {
+      return {
+        content: [{ type: 'text' as const, text: `Image file not found: ${args.path}` }],
+        isError: true,
+      };
+    }
+
+    const data: Record<string, string | undefined> = {
+      type: 'image',
+      chatJid,
+      imagePath: args.path,
+      caption: args.caption || undefined,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(MESSAGES_DIR, data);
+
+    return { content: [{ type: 'text' as const, text: 'Image sent.' }] };
+  },
+);
+
+server.tool(
   'schedule_task',
   `Schedule a recurring or one-time task. The task will run as a full agent with access to all tools.
 
