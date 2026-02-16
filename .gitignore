@@ -30,3 +30,4 @@ groups/global/*
 .vscode/
 
 agents-sdk-docs
+.transcription.config.json
