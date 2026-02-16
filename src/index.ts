@@ -9,9 +9,12 @@ import {
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
   POLL_INTERVAL,
+  SLACK_APP_TOKEN,
+  SLACK_BOT_TOKEN,
   TELEGRAM_BOT_TOKEN,
   TELEGRAM_ONLY,
 } from './config.js';
+import { SlackChannel } from './channels/slack.js';
 import { TelegramChannel } from './channels/telegram.js';
 import { WhatsAppChannel } from './channels/whatsapp.js';
 import {
@@ -103,7 +106,7 @@ export function getAvailableGroups(): import('./container-runner.js').AvailableG
   const registeredJids = new Set(Object.keys(registeredGroups));
 
   return chats
-    .filter((c) => c.jid !== '__group_sync__' && (c.jid.endsWith('@g.us') || c.jid.startsWith('tg:')))
+    .filter((c) => c.jid !== '__group_sync__' && (c.jid.endsWith('@g.us') || c.jid.startsWith('tg:') || c.jid.startsWith('slack:')))
     .map((c) => ({
       jid: c.jid,
       name: c.name,
@@ -488,6 +491,12 @@ async function main(): Promise<void> {
     const telegram = new TelegramChannel(TELEGRAM_BOT_TOKEN, channelOpts);
     channels.push(telegram);
     await telegram.connect();
+  }
+
+  if (SLACK_BOT_TOKEN && SLACK_APP_TOKEN) {
+    const slack = new SlackChannel(SLACK_BOT_TOKEN, SLACK_APP_TOKEN, channelOpts);
+    channels.push(slack);
+    await slack.connect();
   }
 
   if (channels.length === 0) {
