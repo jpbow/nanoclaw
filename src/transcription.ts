@@ -70,6 +70,49 @@ async function transcribeWithElevenLabs(
 }
 
 /**
+ * Transcribe an audio buffer from any channel.
+ * Returns the transcribed text, a fallback message, or null on error.
+ */
+export async function transcribeAudioBuffer(
+  audioBuffer: Buffer,
+): Promise<string | null> {
+  const config = loadConfig();
+
+  if (!config.enabled) {
+    return config.fallbackMessage;
+  }
+
+  try {
+    if (!audioBuffer || audioBuffer.length === 0) {
+      logger.error('Empty audio buffer');
+      return config.fallbackMessage;
+    }
+
+    logger.info({ bytes: audioBuffer.length }, 'Transcribing audio');
+
+    let transcript: string | null = null;
+
+    switch (config.provider) {
+      case 'elevenlabs':
+        transcript = await transcribeWithElevenLabs(audioBuffer, config);
+        break;
+      default:
+        logger.error({ provider: config.provider }, 'Unknown transcription provider');
+        return config.fallbackMessage;
+    }
+
+    if (!transcript) {
+      return config.fallbackMessage;
+    }
+
+    return transcript.trim();
+  } catch (err) {
+    logger.error({ err }, 'Transcription error');
+    return config.fallbackMessage;
+  }
+}
+
+/**
  * Transcribe a WhatsApp voice message.
  * Returns the transcribed text, a fallback message, or null on error.
  */
@@ -94,31 +137,9 @@ export async function transcribeVoiceMessage(
       },
     )) as Buffer;
 
-    if (!buffer || buffer.length === 0) {
-      logger.error('Failed to download voice message');
-      return config.fallbackMessage;
-    }
-
-    logger.info({ bytes: buffer.length }, 'Downloaded voice message');
-
-    let transcript: string | null = null;
-
-    switch (config.provider) {
-      case 'elevenlabs':
-        transcript = await transcribeWithElevenLabs(buffer, config);
-        break;
-      default:
-        logger.error({ provider: config.provider }, 'Unknown transcription provider');
-        return config.fallbackMessage;
-    }
-
-    if (!transcript) {
-      return config.fallbackMessage;
-    }
-
-    return transcript.trim();
+    return transcribeAudioBuffer(buffer);
   } catch (err) {
-    logger.error({ err }, 'Transcription error');
+    logger.error({ err }, 'Voice download error');
     return config.fallbackMessage;
   }
 }
