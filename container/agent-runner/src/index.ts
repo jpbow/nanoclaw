@@ -432,7 +432,8 @@ async function runQuery(
         'TodoWrite', 'ToolSearch', 'Skill',
         'NotebookEdit',
         'mcp__nanoclaw__*',
-        'mcp__github__*'
+        'mcp__github__*',
+        'mcp__trello__*'
       ],
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
@@ -454,6 +455,16 @@ async function runQuery(
             url: 'https://api.githubcopilot.com/mcp/',
             headers: {
               Authorization: `Bearer ${sdkEnv.GITHUB_TOKEN}`,
+            },
+          },
+        } : {}),
+        ...(sdkEnv.TRELLO_API_KEY && sdkEnv.TRELLO_TOKEN ? {
+          trello: {
+            command: 'npx',
+            args: ['-y', '@delorenj/mcp-server-trello'],
+            env: {
+              TRELLO_API_KEY: sdkEnv.TRELLO_API_KEY,
+              TRELLO_TOKEN: sdkEnv.TRELLO_TOKEN,
             },
           },
         } : {}),
