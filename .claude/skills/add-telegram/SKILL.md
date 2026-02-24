@@ -580,6 +580,34 @@ If user wants Telegram-only:
 
 ## Features
 
+### File Attachments (Inbound)
+
+When users send files to Telegram, the agent automatically receives them as readable files:
+
+| Telegram message type | What the agent sees |
+|-----------------------|---------------------|
+| Photo | `[Photo: /workspace/group/attachments/tg_photo_123.jpg]` |
+| Document (PDF, MD, CSV, etc.) | `[Document: /workspace/group/attachments/tg_doc_123_report.pdf]` |
+| Audio file | `[Audio: /workspace/group/attachments/tg_audio_123.mp3]` |
+| Voice message | `[Voice: transcribed text here]` (transcribed, not a file) |
+| Video | `[Video]` (placeholder — too large to download by default) |
+
+Files are saved to `groups/{group-folder}/attachments/` on the host, which maps to `/workspace/group/attachments/` inside the container. The agent can use the `Read` tool for text/code files, or view images using Claude's built-in image support. Files over 20 MB fall back to placeholder-only.
+
+### File Attachments (Outbound — `send_file` MCP tool)
+
+The agent can send files back using the `send_file` MCP tool:
+
+```
+send_file(path="/workspace/group/research.md", caption="Here's the research you asked for")
+```
+
+Supported path roots:
+- `/workspace/group/` — any file in the agent's group workspace
+- `/workspace/ipc/` — files written to the IPC media directory
+
+The file arrives in Telegram as a document with the original filename. Useful for sending research reports, data exports, generated files, etc.
+
 ### Chat ID Formats
 
 - **WhatsApp**: `120363336345536173@g.us` (groups) or `1234567890@s.whatsapp.net` (DM)

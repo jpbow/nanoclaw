@@ -5,6 +5,7 @@ import path from 'path';
 import {
   ASSISTANT_NAME,
   DATA_DIR,
+  GROUPS_DIR,
   hasTrigger,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
@@ -474,7 +475,30 @@ async function main(): Promise<void> {
 
   // Channel callbacks (shared by all channels)
   const channelOpts = {
-    onMessage: (_chatJid: string, msg: NewMessage) => storeMessage(msg),
+    onMessage: (_chatJid: string, msg: NewMessage) => {
+      // Save any file attachments to the group's attachments folder before storing
+      if (msg.attachments?.length) {
+        const group = registeredGroups[msg.chat_jid];
+        if (group) {
+          const attachmentsDir = path.join(GROUPS_DIR, group.folder, 'attachments');
+          fs.mkdirSync(attachmentsDir, { recursive: true });
+          for (const att of msg.attachments) {
+            try {
+              fs.writeFileSync(path.join(attachmentsDir, att.filename), att.buffer);
+              msg.content = msg.content.replace(
+                att.placeholder,
+                `/workspace/group/attachments/${att.filename}`,
+              );
+              logger.debug({ filename: att.filename, group: group.folder }, 'Attachment saved');
+            } catch (err) {
+              logger.error({ err, filename: att.filename }, 'Failed to save attachment');
+            }
+          }
+        }
+        delete msg.attachments;
+      }
+      storeMessage(msg);
+    },
     onChatMetadata: (chatJid: string, timestamp: string, name?: string) =>
       storeChatMetadata(chatJid, timestamp, name),
     registeredGroups: () => registeredGroups,
@@ -526,6 +550,11 @@ async function main(): Promise<void> {
       const channel = findChannel(channels, jid);
       if (!channel?.sendPhoto) throw new Error(`No channel with photo support for JID: ${jid}`);
       return channel.sendPhoto(jid, photo, caption);
+    },
+    sendDocument: (jid, document, filename, caption) => {
+      const channel = findChannel(channels, jid);
+      if (!channel?.sendDocument) throw new Error(`No channel with document support for JID: ${jid}`);
+      return channel.sendDocument(jid, document, filename, caption);
     },
     registeredGroups: () => registeredGroups,
     registerGroup,

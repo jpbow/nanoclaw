@@ -92,7 +92,9 @@ export class GroupQueue {
 
     if (state.active) {
       state.pendingTasks.push({ id: taskId, groupJid, fn });
-      logger.debug({ groupJid, taskId }, 'Container active, task queued');
+      // Close the idle container so the task can run once it exits
+      this.closeStdin(groupJid);
+      logger.debug({ groupJid, taskId }, 'Container active, closing stdin so task can run');
       return;
     }
 

@@ -41,6 +41,13 @@ export interface RegisteredGroup {
   requiresTrigger?: boolean; // Default: true for groups, false for solo chats
 }
 
+export interface MessageAttachment {
+  filename: string;    // Filename to save under groups/{folder}/attachments/
+  buffer: Buffer;      // File content
+  mimeType?: string;
+  placeholder: string; // Substring in content to replace with /workspace/group/attachments/{filename}
+}
+
 export interface NewMessage {
   id: string;
   chat_jid: string;
@@ -50,6 +57,8 @@ export interface NewMessage {
   timestamp: string;
   is_from_me?: boolean;
   is_bot_message?: boolean;
+  /** Transient — never stored in DB. Saved to disk by index.ts before storeMessage(). */
+  attachments?: MessageAttachment[];
 }
 
 export interface ScheduledTask {
@@ -89,6 +98,8 @@ export interface Channel {
   setTyping?(jid: string, isTyping: boolean): Promise<void>;
   // Optional: send a photo/image. Channels that support it implement it.
   sendPhoto?(jid: string, photo: Buffer, caption?: string): Promise<void>;
+  // Optional: send a file/document. Channels that support it implement it.
+  sendDocument?(jid: string, document: Buffer, filename: string, caption?: string): Promise<void>;
 }
 
 // Callback type that channels use to deliver inbound messages

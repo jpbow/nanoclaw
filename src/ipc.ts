@@ -5,6 +5,7 @@ import { CronExpressionParser } from 'cron-parser';
 
 import {
   DATA_DIR,
+  GROUPS_DIR,
   IPC_POLL_INTERVAL,
   MAIN_GROUP_FOLDER,
   TIMEZONE,
@@ -17,6 +18,7 @@ import { RegisteredGroup } from './types.js';
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
   sendPhoto: (jid: string, photo: Buffer, caption?: string) => Promise<void>;
+  sendDocument: (jid: string, document: Buffer, filename: string, caption?: string) => Promise<void>;
   registeredGroups: () => Record<string, RegisteredGroup>;
   registerGroup: (jid: string, group: RegisteredGroup) => void;
   syncGroupMetadata: (force: boolean) => Promise<void>;
@@ -30,6 +32,28 @@ export interface IpcDeps {
 }
 
 let ipcWatcherRunning = false;
+
+/**
+ * Translate a container-side path to the corresponding host path.
+ * - /workspace/ipc/...   → data/ipc/{sourceGroup}/...
+ * - /workspace/group/... → groups/{sourceGroup}/...
+ * Returns null for unrecognised path prefixes.
+ */
+function resolveContainerPath(
+  containerPath: string,
+  sourceGroup: string,
+  ipcBaseDir: string,
+): string | null {
+  if (containerPath.startsWith('/workspace/ipc/')) {
+    const relative = containerPath.replace(/^\/workspace\/ipc\//, '');
+    return path.join(ipcBaseDir, sourceGroup, relative);
+  }
+  if (containerPath.startsWith('/workspace/group/')) {
+    const relative = containerPath.replace(/^\/workspace\/group\//, '');
+    return path.join(GROUPS_DIR, sourceGroup, relative);
+  }
+  return null;
+}
 
 export function startIpcWatcher(deps: IpcDeps): void {
   if (ipcWatcherRunning) {
@@ -114,6 +138,31 @@ export function startIpcWatcher(deps: IpcDeps): void {
                   logger.warn(
                     { chatJid: data.chatJid, sourceGroup },
                     'Unauthorized IPC image attempt blocked',
+                  );
+                }
+              } else if (data.type === 'file' && data.chatJid && data.filePath && data.filename) {
+                if (isAuthorized(data.chatJid)) {
+                  // Translate container path to host path.
+                  // Supports: /workspace/ipc/... → data/ipc/{sourceGroup}/...
+                  //           /workspace/group/... → groups/{sourceGroup}/...
+                  const hostPath = resolveContainerPath(data.filePath, sourceGroup, ipcBaseDir);
+                  if (hostPath && fs.existsSync(hostPath)) {
+                    const fileBuffer = fs.readFileSync(hostPath);
+                    await deps.sendDocument(data.chatJid, fileBuffer, data.filename, data.caption);
+                    logger.info(
+                      { chatJid: data.chatJid, sourceGroup, filename: data.filename },
+                      'IPC file sent',
+                    );
+                  } else {
+                    logger.error(
+                      { chatJid: data.chatJid, filePath: data.filePath, hostPath },
+                      'IPC file not found on host',
+                    );
+                  }
+                } else {
+                  logger.warn(
+                    { chatJid: data.chatJid, sourceGroup },
+                    'Unauthorized IPC file attempt blocked',
                   );
                 }
               }

@@ -93,6 +93,48 @@ server.tool(
 );
 
 server.tool(
+  'send_file',
+  `Send a file (document, PDF, markdown, CSV, etc.) to the user or group.
+
+Use this to deliver research results, exports, or any generated file directly in the chat.
+
+Supported path roots:
+- /workspace/group/  — files in your group workspace (e.g. /workspace/group/research.md)
+- /workspace/ipc/    — files you've written to the IPC media dir
+
+The filename shown to the recipient defaults to the basename of the path, but you can override it.`,
+  {
+    path: z.string().describe('Absolute path to the file (e.g., /workspace/group/research.md or /workspace/ipc/media/export.csv)'),
+    filename: z.string().optional().describe('Filename to show the recipient (defaults to the basename of path)'),
+    caption: z.string().optional().describe('Optional caption or description to send alongside the file'),
+  },
+  async (args) => {
+    if (!fs.existsSync(args.path)) {
+      return {
+        content: [{ type: 'text' as const, text: `File not found: ${args.path}` }],
+        isError: true,
+      };
+    }
+
+    const filename = args.filename || path.basename(args.path);
+
+    const data: Record<string, string | undefined> = {
+      type: 'file',
+      chatJid,
+      filePath: args.path,
+      filename,
+      caption: args.caption || undefined,
+      groupFolder,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(MESSAGES_DIR, data);
+
+    return { content: [{ type: 'text' as const, text: `File "${filename}" queued for sending.` }] };
+  },
+);
+
+server.tool(
   'schedule_task',
   `Schedule a recurring or one-time task. The task will run as a full agent with access to all tools.
 
